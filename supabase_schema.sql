@@ -155,8 +155,8 @@ CREATE TABLE IF NOT EXISTS login_attempts (
 );
 
 -- Reminder-engine ledger: one row per (dose, stage) sent or superseded.
--- The UNIQUE constraint makes the engine safe to run every minute and across
--- restarts (see REMINDER_ENGINE.md).
+-- The UNIQUE constraint deduplicates ledger rows, not external SMS sends.
+-- See REMINDER_ENGINE.md for the send-before-record crash window.
 CREATE TABLE IF NOT EXISTS notification_log (
     id BIGSERIAL PRIMARY KEY,
     patient_id BIGINT REFERENCES users(id),
@@ -178,31 +178,32 @@ CREATE INDEX IF NOT EXISTS idx_otp_phone ON otp_verifications(phone);
 CREATE INDEX IF NOT EXISTS idx_notification_log_lookup ON notification_log(patient_id, date);
 
 -- =============================================================================
--- ROW LEVEL SECURITY — intentionally NOT enabled (read this before adding it)
+-- Server-only database API boundary
 -- =============================================================================
--- This schema deliberately ships with RLS DISABLED and zero policies. That is
--- the honest state, not an oversight. Do NOT "harden" it by enabling RLS and
--- writing auth.uid()-based policies — under this app's architecture they would
--- be inert, and the appearance of security is worse than its visible absence.
+-- Custom authentication has no Supabase user JWT. Application authorization in
+-- src/utils/authz.py therefore remains mandatory for the service_role client.
+-- RLS does not constrain that BYPASSRLS role, but DOES protect against direct
+-- access by API client roles. No client policies are intentionally provided.
+-- Explicit grants avoid depending on a project's default privilege settings.
 --
--- Why RLS cannot enforce anything here:
---   * The app rolls its own auth: a custom `users` table with BIGSERIAL ids,
---     bcrypt credentials in `user_credentials`, and session tokens in
---     `user_sessions`. It does NOT use Supabase Auth.
---   * With no Supabase Auth there is no Supabase JWT, so `auth.uid()` is always
---     NULL. Any policy referencing it can never match a real user.
---   * The app connects with a single service (secret) key from SUPABASE_KEY.
---     The service role BYPASSES RLS entirely, so policies never even evaluate.
---   * Enabling RLS with no policies would therefore be inert under the service
---     key (today), or deny every query under the anon key — breaking the app.
---
--- Where authorization actually lives:
---   Every patient-scoped data method routes through one chokepoint,
---   _assert_can_access_patient in src/utils/authz.py, enforced identically in
---   both DB backends. That is the real trust boundary. See HARDENING_SPRINT.md
---   Finding 1 and the Security section of the README.
---
--- Migration path (future work, out of scope this sprint):
---   Adopt Supabase Auth so requests carry a real JWT and auth.uid() resolves,
---   connect from the browser with the anon key, THEN enable RLS and add
---   per-table policies. Only after that does RLS provide real defense in depth.
+-- Review before applying to an existing project: this revokes direct client
+-- access to these app tables. It does not remove pre-existing RLS policies;
+-- review those separately. This file is NOT run automatically by the app.
+-- No changes have been applied to any hosted database as part of the audit.
+-- https://supabase.com/docs/guides/database/postgres/row-level-security
+DO $$
+DECLARE
+    app_table text;
+BEGIN
+    FOREACH app_table IN ARRAY ARRAY[
+        'users', 'family_circles', 'family_members', 'medications', 'dose_logs',
+        'reminders', 'user_credentials', 'otp_verifications', 'user_sessions',
+        'invite_codes', 'login_attempts', 'notification_log'
+    ] LOOP
+        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', app_table);
+        EXECUTE format('REVOKE ALL ON TABLE public.%I FROM PUBLIC, anon, authenticated', app_table);
+        EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.%I TO service_role', app_table);
+        EXECUTE format('REVOKE ALL ON SEQUENCE public.%I FROM PUBLIC, anon, authenticated', app_table || '_id_seq');
+        EXECUTE format('GRANT USAGE, SELECT ON SEQUENCE public.%I TO service_role', app_table || '_id_seq');
+    END LOOP;
+END $$;
