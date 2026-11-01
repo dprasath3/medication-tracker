@@ -13,6 +13,7 @@ Review date: November 1, 2026. Baseline: `e8e59c48208e42c7b6de9b0bffa45d75ed5ddf
 | `python scripts/capture_demo.py` | **Passed** | Real Chromium + Streamlit + synthetic SQLite: email login, dose logging, snooze, caregiver View/Add med, view-only controls, 375px render; three screenshots |
 | SQL access-boundary script | **Passed locally with PGlite** | Real PostgreSQL-compatible engine, schema applied twice; server-role CRUD; client reads/writes denied; all twelve tables protected |
 | `git diff --check` | **Passed** | Whitespace / patch integrity |
+| Updated GitHub CI | **Success: 82 tests in 3.22s, Ruff, PostgreSQL 16 boundary job** | [Run 41354502942](https://github.com/dprasath3/medication-tracker/actions/runs/41354502942), head `f8dabf5`, November 1, 2026 |
 | Baseline GitHub CI | **Success** | [Run 33538876393](https://github.com/dprasath3/medication-tracker/actions/runs/33538876393), September 1, 2026, baseline SHA |
 
 Durations above are single observations, not benchmarks. Remote results for this branch are shown in the pull request's Checks tab. The main-branch README badge is not proof that an unmerged PR passed.

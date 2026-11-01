@@ -111,7 +111,7 @@ python -m pytest -q
 ruff check .
 ```
 
-The audit baseline at `e8e59c4` passed **67 tests** and Ruff on Python 3.11.17. This PR adds targeted regressions and a PostgreSQL access-boundary job. [Exact verification results, commands, and limits](docs/TESTING.md) are recorded separately; the badge links to the real workflow and reports **main**, not an unmerged PR.
+**Verified result:** 82 tests pass locally and in [GitHub CI](https://github.com/dprasath3/medication-tracker/actions/runs/41354502942), along with Ruff and the PostgreSQL 16 access-boundary job. The audit baseline at `e8e59c4` had 67 passing tests; this branch adds 15 regression cases. [Exact verification results, commands, and limits](docs/TESTING.md) are recorded separately; the badge links to the real workflow and reports **main**, not an unmerged PR.
 
 | Area | Evidence |
 | --- | --- |
