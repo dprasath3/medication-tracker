@@ -112,7 +112,7 @@ def show_patient_details():
     st.plotly_chart(fig, use_container_width=True)
 
     # Medication schedule
-    st.markdown("## ⏰ Today's Medication Schedule")
+    st.markdown("## Today's Medication Schedule")
 
     medications = db.get_patient_medications(user["id"], patient_id)
 
@@ -130,7 +130,7 @@ def show_patient_details():
                 if log:
                     status = "Taken" if log[0] else "Missed"
                 else:
-                    status = "⏳ Pending"
+                    status = "Pending"
 
                 schedule_data.append(
                     {

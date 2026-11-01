@@ -197,18 +197,18 @@ def _render_patient_grid(db, data: dict, caller_id: int) -> None:
             cols = st.columns([1, 1, 1])
             with cols[0]:
                 if st.button("View", key=f"view_{p['id']}", use_container_width=True):
-                    st.query_params["id"] = str(p["id"])
+                    st.session_state["selected_patient"] = p["id"]
                     switch_to("patient")
             with cols[1]:
                 if st.button("Add med", key=f"addmed_{p['id']}", use_container_width=True):
-                    st.query_params["patient"] = str(p["id"])
+                    st.session_state["add_medication_for"] = p["id"]
                     switch_to("add_med")
             with cols[2]:
                 if st.button("Log today", key=f"logtoday_{p['id']}", type="primary", use_container_width=True):
                     switch_to("today")
         else:
             if st.button("View", key=f"view_{p['id']}", use_container_width=True):
-                st.query_params["id"] = str(p["id"])
+                st.session_state["selected_patient"] = p["id"]
                 switch_to("patient")
         divider(3)
     stack_close()

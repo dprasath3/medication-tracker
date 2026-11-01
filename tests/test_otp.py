@@ -113,3 +113,40 @@ def test_otp_is_stored_as_keyed_hmac_not_plain_sha256(db, auth):
 
     assert stored != hashlib.sha256(CODE.encode()).hexdigest()  # old, crackable
     assert stored == auth._hash_otp(CODE)  # keyed HMAC, stable within the process
+
+
+def test_repeated_otp_requests_are_limited_without_wrong_guesses(db, auth):
+    for _ in range(auth.MAX_OTP_REQUESTS):
+        assert auth.request_otp(PHONE)["success"] is True
+    assert auth.request_otp(PHONE)["success"] is False
+    assert db.get_recent_otp_requests(auth.normalize_phone(PHONE)) == 3
+
+
+def test_otp_request_window_expires(db, auth):
+    import sqlite3
+    from datetime import datetime, timedelta
+    for _ in range(auth.MAX_OTP_REQUESTS):
+        auth.request_otp(PHONE)
+    with sqlite3.connect(db.db_path) as conn:
+        conn.execute("UPDATE login_attempts SET timestamp = ?",
+                     ((datetime.now() - timedelta(minutes=11)).isoformat(),))
+    assert auth.request_otp(PHONE)["success"] is True
+
+
+def test_otp_and_full_phone_are_not_written_to_logs(auth, monkeypatch, caplog):
+    monkeypatch.setattr(auth, "_generate_otp", lambda: CODE)
+    with caplog.at_level("INFO"):
+        assert auth.request_otp(PHONE)["success"]
+    assert CODE not in caplog.text
+    assert PHONE not in caplog.text
+
+
+def test_failed_sms_delivery_still_counts_toward_request_limit(db):
+    class FailingNotifier:
+        twilio_client = object()
+        def send_sms(self, *args):
+            return False
+    auth = AuthService(db, FailingNotifier())
+    for _ in range(auth.MAX_OTP_REQUESTS):
+        assert "Failed to send" in auth.request_otp(PHONE)["error"]
+    assert "Too many OTP requests" in auth.request_otp(PHONE)["error"]

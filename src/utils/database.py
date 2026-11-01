@@ -196,8 +196,8 @@ class MedicationDB(PatientAuthorizationMixin):
             ''')
 
             # Reminder-engine ledger: one row per (dose, stage) that has been
-            # sent or superseded. The UNIQUE constraint makes the engine safe to
-            # run every minute and across restarts — it never double-sends.
+            # sent or superseded. The UNIQUE constraint deduplicates ledger rows;
+            # a send-before-record crash can still duplicate an external SMS.
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS notification_log (
                     id INTEGER PRIMARY KEY,
@@ -957,6 +957,16 @@ class MedicationDB(PatientAuthorizationMixin):
             )
             return cursor.fetchone()[0]
 
+    def get_recent_otp_requests(self, identifier: str, minutes: int = 10) -> int:
+        """Count OTP issuance attempts independently of verification failures."""
+        since = (datetime.now() - timedelta(minutes=minutes)).isoformat()
+        with sqlite3.connect(self.db_path) as conn:
+            return conn.execute(
+                """SELECT COUNT(*) FROM login_attempts
+                   WHERE identifier = ? AND attempt_type = 'otp_request' AND timestamp > ?""",
+                (identifier, since),
+            ).fetchone()[0]
+
     def set_lockout(self, identifier: str, lockout_minutes: int = 30) -> bool:
         """Set lockout for an identifier."""
         lockout_until = (datetime.now() + timedelta(minutes=lockout_minutes)).isoformat()
@@ -1010,7 +1020,7 @@ class MedicationDB(PatientAuthorizationMixin):
         """Record that a reminder stage was sent (or superseded). Idempotent.
 
         Returns True if newly recorded, False if it already existed — the
-        UNIQUE constraint is the backstop against a double-send under a race.
+        UNIQUE constraint deduplicates records, not external SMS side effects.
         """
         with sqlite3.connect(self.db_path) as conn:
             try:

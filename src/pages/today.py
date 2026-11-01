@@ -7,6 +7,7 @@ for the per-page override that governs this file.
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+from html import escape
 
 import streamlit as st
 
@@ -199,16 +200,16 @@ def _render_dose_card(db, user, patient_id: int, dose: dict, can_write: bool) ->
         <div class="med-card" style="{card_style}">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:var(--space-5);">
             <div style="flex:1;">
-              <h3 style="margin:0 0 var(--space-1) 0;">{med['name']}</h3>
+              <h3 style="margin:0 0 var(--space-1) 0;">{escape(med['name'])}</h3>
               <p class="tabular" style="margin:0;color:var(--text-muted);font-size:1rem;">
-                {med['dosage']}<span style="color:var(--text-subtle);margin:0 0.5rem;">·</span>{formatted_time}
+                {escape(med['dosage'])}<span style="color:var(--text-subtle);margin:0 0.5rem;">·</span>{formatted_time}
               </p>
               {'<div style="margin-top: var(--space-3);">' + status_pill(f"Snoozed from {datetime.strptime(med_time, '%H:%M').strftime('%-I:%M %p')}", 'warning') + '</div>' if is_snoozed else ''}
-              {f'<p class="muted" style="margin: var(--space-3) 0 0 0; padding-top: var(--space-3); border-top: 1px solid var(--border); font-size: 0.9375rem;">{med.get("notes", "")}</p>' if med.get('notes') else ''}
+              {f'<p class="muted" style="margin: var(--space-3) 0 0 0; padding-top: var(--space-3); border-top: 1px solid var(--border); font-size: 0.9375rem;">{escape(med.get("notes", ""))}</p>' if med.get('notes') else ''}
             </div>
           </div>
         </div>
-        """,
+        """.strip().replace("\n", ""),
         unsafe_allow_html=True,
     )
 

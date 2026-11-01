@@ -122,6 +122,7 @@ def show_create_family_circle():
                     }
                 )
 
+                invalidate_read_caches()
                 st.session_state.show_create_circle = False
                 st.session_state.circle_created = True
                 st.session_state.new_invite_code = invite_code
@@ -217,6 +218,7 @@ def show_join_family_circle():
                 )
 
                 if success:
+                    invalidate_read_caches()
                     st.success("Successfully joined the family circle!")
                     st.session_state.show_join_circle = False
                     st.session_state.onboarding_complete = True

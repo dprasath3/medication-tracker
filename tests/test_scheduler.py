@@ -107,3 +107,14 @@ def test_invalid_timezone_falls_back_to_utc(monkeypatch):
         assert str(s._tz) == "UTC"
     finally:
         s.stop()
+
+
+def test_weekly_report_uses_configured_timezone(monkeypatch):
+    monkeypatch.setattr(scheduler_mod, "APP_TIMEZONE", "America/New_York")
+    s = MedicationScheduler(FakeDB())
+    try:
+        s.start()
+        trigger = s.scheduler.get_job("weekly_reports").trigger
+        assert str(trigger.timezone) == "America/New_York"
+    finally:
+        s.stop()

@@ -1,5 +1,5 @@
 # Core web framework
-streamlit>=1.28.0
+streamlit>=1.36.0  # st.navigation and st.Page
 
 # Data handling and visualization
 pandas>=2.0.0

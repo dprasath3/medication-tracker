@@ -127,29 +127,39 @@ def show_phone_login():
                 st.rerun()
 
             # Demo options
-    st.markdown("---")
-    with st.expander("Demo Options", expanded=False):
-        st.markdown("**For demo/portfolio purposes:**")
-        st.info(
-            "In demo mode, OTP codes are logged to console. Check terminal for the code."
-        )
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Skip Login (Guest Mode)", type="secondary"):
-                _sign_in_as_guest()
-                st.rerun()
-        with col2:
-            if st.button("Reset All Data", type="secondary"):
-                db_path = "data/medications.db"
-                if os.path.exists(db_path):
-                    os.remove(db_path)
-                # Clear DB/auth singletons so the next request re-initialises
-                # against the fresh (empty) database.
-                st.cache_resource.clear()
-                for key in list(st.session_state.keys()):
-                    del st.session_state[key]
-                st.success("All data cleared. Signing you out.")
-                st.rerun()
+    if _local_demo_enabled():
+        st.markdown("---")
+        with st.expander("Demo Options", expanded=False):
+            st.markdown("**For demo/portfolio purposes:**")
+            st.info(
+                "Local demo only. Enable MEDSYNC_DEV_SHOW_OTP=1 to display a test code in the verification screen."
+            )
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Skip Login (Guest Mode)", type="secondary"):
+                    _sign_in_as_guest()
+                    st.rerun()
+            with col2:
+                if st.button("Reset All Data", type="secondary"):
+                    db_path = "data/medications.db"
+                    if os.path.exists(db_path):
+                        os.remove(db_path)
+                    # Clear DB/auth singletons so the next request re-initialises
+                    # against the fresh (empty) database.
+                    st.cache_resource.clear()
+                    for key in list(st.session_state.keys()):
+                        del st.session_state[key]
+                    st.success("All data cleared. Signing you out.")
+                    st.rerun()
+
+
+def _local_demo_enabled() -> bool:
+    """Guest/reset controls are opt-in and never enabled with a cloud backend."""
+    return (
+        os.getenv("MEDSYNC_LOCAL_DEMO") == "1"
+        and not os.getenv("SUPABASE_URL")
+        and not os.getenv("SUPABASE_KEY")
+    )
 
 
 def _sign_in_as_guest() -> None:
@@ -160,6 +170,8 @@ def _sign_in_as_guest() -> None:
     with a real user record. The Guest row lives in the DB like any other
     user, which keeps us honest about the "no fake data" rule in CLAUDE.md.
     """
+    if not _local_demo_enabled():
+        raise PermissionError("Guest access is available only in a local demo")
     db, _ = init_database()
     users = db.get_users()
     guest = next((u for u in users if u.get("email") == "guest@demo.local"), None)
@@ -484,23 +496,11 @@ def show_email_login():
                 else:
                     st.error("Please enter your email address")
 
-                    # Demo options
-    with st.expander("Demo Options", expanded=False):
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Skip Login (Guest)", type="secondary", key="guest_email"):
-                st.session_state.show_login = False
-                st.session_state.auth_step = "phone"
+    if _local_demo_enabled():
+        with st.expander("Demo Options", expanded=False):
+            if st.button("Skip Login (Guest)", key="guest_email"):
+                _sign_in_as_guest()
                 st.rerun()
-        with col2:
-            if st.button("Reset All Data", type="secondary", key="reset_email_page"):
-                db_path = "data/medications.db"
-                if os.path.exists(db_path):
-                    os.remove(db_path)
-                    for key in list(st.session_state.keys()):
-                        del st.session_state[key]
-                    st.success("All data cleared!")
-                    st.rerun()
 
 
 
@@ -768,6 +768,9 @@ def show_welcome_screen():
 
 def show_profile_setup():
     """Show profile setup form."""
+    if not _local_demo_enabled():
+        st.info("Use Create an account to register with authentication.")
+        return
     user_type = st.session_state.get("user_type", "family_member")
 
     st.markdown("# Set Up Your Profile")
@@ -859,6 +862,8 @@ def render() -> None:
         show_welcome_screen()
     elif mode == "profile-setup":
         show_profile_setup()
+    elif st.session_state.get("auth_step") == "email_login":
+        show_email_login()
     elif st.session_state.get("auth_step") == "otp":
         show_otp_verification()
     elif st.session_state.get("auth_step") == "complete_profile":

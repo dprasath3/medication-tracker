@@ -81,3 +81,15 @@ def test_expired_token_does_not_resolve(db, auth):
     stale = "expired-token-value"
     db.create_session(user_id=user["id"], session_token=stale, expiry_days=-1)
     assert auth.validate_session(stale) is None
+
+
+def test_blank_app_base_url_uses_local_default(monkeypatch):
+    import importlib
+    from services import auth as auth_module
+    monkeypatch.setenv("APP_BASE_URL", "")
+    try:
+        importlib.reload(auth_module)
+        assert auth_module.APP_BASE_URL == "http://localhost:8501"
+    finally:
+        monkeypatch.delenv("APP_BASE_URL", raising=False)
+        importlib.reload(auth_module)

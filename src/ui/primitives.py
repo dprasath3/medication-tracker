@@ -5,6 +5,8 @@ Every primitive uses design tokens from ``ui.theme`` — no hardcoded colors.
 
 from __future__ import annotations
 
+from html import escape
+
 import streamlit as st
 
 from ui.icons import icon
@@ -14,10 +16,10 @@ def page_shell(title: str, eyebrow: str | None = None, subtitle: str | None = No
     """Render a standard page header: eyebrow, hero heading, optional subtitle."""
     parts = ['<div class="page-fade">']
     if eyebrow:
-        parts.append(f'<p class="eyebrow">{eyebrow}</p>')
-    parts.append(f'<h1 class="hero-heading">{title}</h1>')
+        parts.append(f'<p class="eyebrow">{escape(eyebrow)}</p>')
+    parts.append(f'<h1 class="hero-heading">{escape(title)}</h1>')
     if subtitle:
-        parts.append(f'<p class="muted" style="font-size:1.125rem;margin-bottom:2rem;">{subtitle}</p>')
+        parts.append(f'<p class="muted" style="font-size:1.125rem;margin-bottom:2rem;">{escape(subtitle)}</p>')
     parts.append("</div>")
     st.markdown("".join(parts), unsafe_allow_html=True)
 
@@ -42,8 +44,8 @@ def empty_state(title: str, description: str, illustration: str | None = None) -
             margin: var(--space-5) 0;">
             <div style="margin: 0 auto var(--space-5); max-width: 160px;">{blob}</div>
             <h3 style="font-family: var(--font-heading); font-size: 1.375rem;
-                       color: var(--text-strong); margin: 0 0 var(--space-2) 0;">{title}</h3>
-            <p style="color: var(--text-muted); font-size: 1.0625rem; margin: 0;">{description}</p>
+                       color: var(--text-strong); margin: 0 0 var(--space-2) 0;">{escape(title)}</h3>
+            <p style="color: var(--text-muted); font-size: 1.0625rem; margin: 0;">{escape(description)}</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -100,7 +102,7 @@ def status_pill(text: str, kind: str = "default") -> str:
         f'<span style="display:inline-flex;align-items:center;gap:0.375rem;'
         f'background:{bg};color:{fg};padding:0.25rem 0.75rem;'
         f'border-radius:var(--radius-pill);font-size:0.8125rem;font-weight:500;'
-        f'font-variant-numeric:tabular-nums;">{text}</span>'
+        f'font-variant-numeric:tabular-nums;">{escape(text)}</span>'
     )
 
 

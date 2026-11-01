@@ -228,3 +228,11 @@ data/
 # But keep vendored skill data (e.g. .claude/skills/*/data/)
 !.claude/**/data/
 !.claude/**/data/**
+
+# Local secrets and SQLite sidecars
+.env.*
+!.env.example
+.streamlit/secrets.toml
+*.db-wal
+*.db-shm
+*.db-journal

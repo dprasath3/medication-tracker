@@ -47,7 +47,7 @@ _OTP_SECRET_BYTES = _OTP_SECRET.encode()
 # point at the public domain, so set APP_BASE_URL (e.g. https://app.example.com).
 # Trailing slashes are stripped so the "{base}/?verify_email=..." join never
 # produces a double slash. Resolved once at import, matching APP_TIMEZONE.
-APP_BASE_URL = os.getenv('APP_BASE_URL', 'http://localhost:8501').rstrip('/')
+APP_BASE_URL = (os.getenv('APP_BASE_URL') or 'http://localhost:8501').rstrip('/')
 if 'localhost' in APP_BASE_URL or '127.0.0.1' in APP_BASE_URL:
     logger.warning(
         "APP_BASE_URL is %r; emailed verify/reset links will point at localhost. "
@@ -140,7 +140,10 @@ class AuthService:
             phone, minutes=self.OTP_RATE_LIMIT_MINUTES
         )
 
-        if recent_attempts >= self.MAX_OTP_REQUESTS:
+        recent_requests = self.db.get_recent_otp_requests(
+            phone, minutes=self.OTP_RATE_LIMIT_MINUTES
+        )
+        if max(recent_attempts, recent_requests) >= self.MAX_OTP_REQUESTS:
             return False, f"Too many OTP requests. Please wait {self.OTP_RATE_LIMIT_MINUTES} minutes."
 
         return True, ""
@@ -178,6 +181,10 @@ class AuthService:
             # Still send OTP to prevent phone enumeration
             pass
 
+        # Count issuance attempts, including failed delivery, separately from
+        # verification failures. Replacing a pending OTP must not reset the limit.
+        self.db.record_login_attempt(normalized_phone, "otp_request", True)
+
         # Generate OTP
         otp = self._generate_otp()
         otp_hash = self._hash_otp(otp)
@@ -208,7 +215,7 @@ class AuthService:
                 }
         else:
             # For development without SMS configured
-            logger.info(f"[DEV] OTP for {normalized_phone}: {otp}")
+            logger.info("SMS is disabled; no verification message was sent.")
 
         result = {
             'success': True,

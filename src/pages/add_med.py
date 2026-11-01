@@ -22,7 +22,7 @@ from utils.authz import AuthorizationError
 from utils.session import (
     db as _db, family_manager as _family_manager,
     auth_service as _auth_service, notification_service as _notification_service,
-    init_session_state, current_user, sign_out, switch_to,
+    init_session_state, current_user, sign_out, switch_to, invalidate_read_caches,
 )
 
 
@@ -142,8 +142,9 @@ def show_add_medication():
                 except AuthorizationError:
                     st.error("You don't have permission to add medications for this patient.")
                     return
+                invalidate_read_caches()
                 st.success(f"Added {medication_name} for {patient['name']}")
-                st.info("Automated reminders will be sent at scheduled times!")
+                st.info("SMS reminders require a separately configured reminder worker.")
                 st.balloons()
 
                 # Clear form and return to dashboard
