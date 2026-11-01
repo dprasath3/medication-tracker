@@ -1,9 +1,9 @@
 # Reminder delivery engine — design
 
-Status: **design locked, implementation in progress.** This is the plan of
-record for the medication reminder + escalation system. Read it before
-touching `services/reminder_engine.py`, `services/scheduler.py`, or the
-deployment config.
+Status: **reconciliation engine implemented; delivery guarantees are limited.**
+This document records implemented behavior and its original design decisions.
+Deployment instructions are a recipe; no live deployment was verified.
+See [verification](docs/TESTING.md) and [security review](SECURITY.md).
 
 ---
 
@@ -24,25 +24,23 @@ SMS is the primary channel (Twilio, already wired). A dose logged as taken
 
 ## Architecture
 
-Two processes on Railway, one shared database:
+Recommended separate-container layout:
 
-```
-web service            worker service
-streamlit web_app.py   python src/main.py --start   (the engine)
-        \                      /
-         \                    /
-          Supabase Postgres  (shared state — the coherence requirement)
-                   |
-                   v
-              Twilio SMS
+```mermaid
+flowchart TD
+    Web["Streamlit web process"] --> DB["Shared Supabase PostgreSQL"]
+    Worker["Reminder worker"] --> DB
+    Worker --> SMS["Twilio SMS"]
+    Worker --> Email["SMTP weekly reports"]
 ```
 
-**Why shared Supabase is mandatory:** web and worker are separate Railway
+**Why separate containers need shared storage:** web and worker are separate Railway
 containers with separate filesystems. SQLite (a local file) cannot be seen by
 both. The worker answering "did the patient log this dose?" requires reading
 the same rows the web app writes. Both processes select the Supabase backend
 via `utils.db_factory.get_database()` when `SUPABASE_URL`/`SUPABASE_KEY` are
-set. SQLite remains local-dev only.
+set. Local processes on the same machine can share one SQLite file; separate
+containers cannot assume the same filesystem.
 
 ## Locked decisions
 
@@ -64,10 +62,11 @@ set. SQLite remains local-dev only.
 
 The engine does **not** hold per-dose timers in memory. Every minute it
 recomputes desired state from the DB and sends whatever is due but unsent.
-This is what makes it **restart-safe** — it closes the old "in-process
-APScheduler loses pending reminders on restart" limitation.
+This recovers outstanding **current-day** work after a normal restart without
+rebuilding in-memory dose timers. It does not recover prior-day doses or make
+the external send atomic with the database write.
 
-`tick(db, notifier, now)` — a pure, injectable function (inject `now` and a
+`tick(db, notifier, now)` — injectable orchestration with database/SMS side effects (inject `now` and a
 fake `notifier` → fully unit-testable, no real clock, no real SMS):
 
 ```
@@ -96,7 +95,19 @@ for med in active medications (role=patient, read as SYSTEM_CALLER):
 
 Every send is gated by `notification_sent(...)`, backed by a UNIQUE
 constraint on `(patient_id, medication_name, scheduled_time, date, stage)`.
-Running the tick twice, or restarting mid-tick, never double-texts.
+A completed ledger record suppresses the stage on later sequential ticks.
+The UNIQUE constraint deduplicates ledger **rows**, not external SMS sends:
+
+- A crash or database failure after provider acceptance but before recording
+  can cause a duplicate on retry.
+- Two worker processes can both observe an unsent stage and send before either
+  records it. Run one worker; `max_instances=1` only prevents in-process overlap.
+- A successful provider API call means accepted, not confirmed delivered.
+- A caregiver stage is marked handled when **any** recipient send succeeds;
+  failed recipients are not individually retried after that.
+
+An atomic outbox/claim protocol, delivery reconciliation, and per-recipient
+records are follow-up work. There is no exactly-once delivery guarantee.
 
 ## Data model — `notification_log`
 
@@ -110,14 +121,14 @@ stage is recorded the same way as a sent one — the ledger records "this stage
 will not fire," whether because it was sent or skipped. (The dead `reminders`
 table is unrelated and left for a later cleanup.)
 
-## What exists vs. what's built
+## Implementation inventory
 
-**Reuse:** `notifications.send_sms` (Twilio); `SYSTEM_CALLER` +
+**Existing supporting code:** `notifications.send_sms` (Twilio); `SYSTEM_CALLER` +
 `get_patient_medications(SYSTEM_CALLER, …)`; `get_dose_log_for_date`
 (the escalation predicate); `get_family_circle_members`; `main.py --start`
 worker entrypoint; `db_factory.get_database()`.
 
-**Build (staged, one commit each):**
+**Implemented stages (see source and tests):**
 1. `notification_log` table (both backends + `supabase_schema.sql`) +
    `record_notification`/`notification_sent` (idempotent) +
    `get_caregiver_contacts(patient_id)` (family members with a phone, deduped).
@@ -138,8 +149,7 @@ worker: python src/main.py --start
 
 - **web** binds Railway's `$PORT`; `--headless true` suppresses the browser/
   telemetry prompt.
-- **worker** has no port; run **exactly one** instance (the ledger makes
-  duplicates safe, but one is correct and cheaper).
+- **worker** has no port; run **exactly one** instance; multiple workers can duplicate sends.
 - Pin Python with `.python-version` = `3.11` (matches README + CI).
 
 Environment variables (set in Railway, shared to both services unless noted):
@@ -149,11 +159,11 @@ Environment variables (set in Railway, shared to both services unless noted):
 | `SUPABASE_URL`, `SUPABASE_KEY` | ✓ | ✓ | Forces the shared Supabase backend. |
 | `TWILIO_ACCOUNT_SID` / `AUTH_TOKEN` / `PHONE_NUMBER` | ✓ | ✓ | web sends OTP, worker sends reminders. |
 | `MEDSYNC_OTP_SECRET` | ✓ | – | OTP hashing (web only). |
-| `APP_TIMEZONE` | ✓ | ✓ | Dose scheduling + display. |
-| `APP_BASE_URL` | ✓ | – | Public base for emailed verify/reset links; defaults to localhost. |
+| `APP_TIMEZONE` | ✓ | ✓ | Worker/weekly cron; UI and dose dates still use host-local time. |
+| `APP_BASE_URL` | ✓ | – | Email-link base; browser reset/verification handlers remain unfinished. |
 | `EMAIL_*` | ✓ | ✓ | Optional fallback / weekly reports. |
 
-## Known limitations (document, don't fix here)
+## Known limitations
 
 - Timezone-naive scheduling; per-user timezone is the real fix.
 - `dose_logs.medication_name` is denormalized text, so escalation keys off
@@ -161,3 +171,12 @@ Environment variables (set in Railway, shared to both services unless noted):
   shipped.
 - Per-minute full scan of active meds is fine at current scale; add a
   due-dose query/index if patient volume grows.
+
+- Current-day only: a 23:45 dose does not continue escalation after midnight.
+- UI `Snooze 30 min` is browser-session state and is not consulted by the worker.
+- Historical adherence counts taken / explicitly logged doses, excluding unlogged
+  schedules; it is not a clinical adherence estimate.
+- Invalid worker timezone configuration falls back to UTC with a warning; UI/log
+  date calculations are still host-local. DST and per-user timezone behavior
+  need dedicated tests and a consistent timestamp model.
+- The `sent_at` field does not distinguish sent from superseded stages.

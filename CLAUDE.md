@@ -11,8 +11,9 @@ Read it before touching anything.
 ## What this project is
 
 Streamlit + Supabase medication tracker for elderly patients (55+, often 75+)
-and their family support circle. Backend is stable. The scope of active work
-is **UI/UX, theming, routing, motion, performance**.
+and their family support circle. The current implementation and known gaps are documented in README.md,
+SECURITY.md, and docs/AUDIT.md. The original UI sprint constraints below guide
+UI work; an explicitly authorized maintenance/security task may touch other layers.
 
 Design system source of truth: **`design-system/MASTER.md`**. Per-page
 overrides in `design-system/pages/`. Every UI decision must trace to one of
@@ -32,7 +33,8 @@ those files or to a fresh query against the installed
 - Wrap DB reads in `@st.cache_data(ttl=60)`. Wrap the DB client and auth
   service in `@st.cache_resource`.
 - Route with `st.navigation` + `st.Page`. Every screen has a stable URL.
-- Ask before committing. Commit in logical chunks, not one giant blob.
+- Commit in logical chunks. Follow the user's branch/PR instructions; an explicit
+  request to commit and open a PR already authorizes those actions.
 
 ## Don't
 
@@ -43,7 +45,8 @@ those files or to a fresh query against the installed
 - Don't add violet/pink/AI-purple gradients or glassmorphism.
 - Don't touch `src/utils/database*.py`, `src/models/`, or `src/services/`
   except when a UI change legitimately requires a new return field or method.
-- Don't add fake data, mock users, or placeholder screens. Work against real DB.
+- Keep production UI backed by real database operations. Synthetic demos and
+  test fixtures belong in isolated temporary databases (see scripts/demo.py).
 - Don't skip the skill workflow for design decisions. Run
   `python3 .claude/skills/ui-ux-pro-max/scripts/search.py "..." --domain <d>`
   and cite the result.
@@ -66,25 +69,21 @@ those files or to a fresh query against the installed
 ## Themes shipped
 
 `warm-cream` (default), `cool-sage`, `twilight` (soft warm dark),
-`high-contrast` (WCAG AAA). Users pick from Settings, choice persists to
+`high-contrast` (high-contrast design target; no conformance certification). Users pick from Settings, choice persists to
 the `users.theme` column. Swap via `[data-theme]` on `<html>`; never
 regenerate whole CSS blocks.
 
 ## Routing
 
-`st.navigation` (Streamlit ≥1.36) with these routes:
+The implemented router is in `src/web_app.py`. Signed-out users see `/`;
+patients default to Today and caregivers to Dashboard. Other routes include
+`/patients?id=...`, `/add-med?patient=...`, `/circle`, `/onboarding`, and `/settings`.
+Auth substeps mostly use session state. The old `/auth/otp` and `/patients/<id>`
+paths were design plans, not implemented routes. See docs/ARCHITECTURE.md.
 
-- `/` — landing/redirect based on auth state
-- `/auth/phone`, `/auth/otp`, `/auth/profile` — phone-first onboarding
-- `/welcome`, `/onboarding` — first-run flows
-- `/today` — patient's today's medications
-- `/dashboard` — family caregiver overview
-- `/patients/<id>` — patient detail
-- `/patients/<id>/meds/new` — add medication
-- `/circle/create`, `/circle/join` — family circle
-- `/settings` — profile, theme picker, notifications, sign out
-
-Every route reachable by direct URL. Browser back must work.
+Use session state to pass patient selection through `st.switch_page`, which
+can clear query parameters. Treat URL identifiers as untrusted. URL bearer-token
+persistence is a known security/usability limitation, not a recommended design.
 
 ## Fonts
 

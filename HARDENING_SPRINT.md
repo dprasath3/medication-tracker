@@ -1,4 +1,28 @@
-# MedSync — Hardening Sprint Brief
+# MedSync — Historical Hardening Sprint Brief
+
+> **Historical planning document, preserved for context.** The brief below
+> describes the repository before the hardening and reminder work. Its original
+> instructions and unchecked boxes are not a current task list. Current behavior
+> is described in [README.md](README.md), [SECURITY.md](SECURITY.md), and
+> [the November 2026 audit](docs/AUDIT.md).
+
+## Reconciliation with current source (November 1, 2026)
+
+| Original finding/plan | Current state |
+| --- | --- |
+| No tests / no CI | Baseline has 67 passing tests and a real push/PR workflow; this PR expands both. |
+| Patient-ID authorization vulnerability | Shared application policy is implemented in both adapters; SQLite tests cover forged IDs, unrelated callers, permission levels, and system read-only access. Internal account/circle/worker helpers still require trusted callers. |
+| Leave RLS disabled | **Superseded security advice.** A service key bypasses RLS, but direct client API access still needs protection. This PR proposes RLS plus explicit grants/revocations; it does not apply changes to hosted databases. |
+| Duplicate Supabase implementation | The unreachable `SupabaseDB` and `supabase_client.py` are absent from the current tree. |
+| Plain OTP digest | HMAC-SHA256 is implemented. This PR also counts actual issuance requests and removes plaintext OTP logging. |
+| Reminder engine deferred / timers lost on restart | Reconciliation and persistent ledger are implemented. Recovery is current-day only; SMS send/ledger writes are not atomic. |
+| Medication rename detaches history | Names are locked in editing; name/time-based identity and duplicate-dose limitations remain. |
+| UI/design claims | Four themes are implemented; route, contrast, and motion details in specifications remain design intent rather than conformance evidence. |
+
+---
+
+## Original brief (historical)
+
 
 ## Context
 

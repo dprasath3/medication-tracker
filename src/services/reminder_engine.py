@@ -2,12 +2,13 @@
 
 See REMINDER_ENGINE.md for the full design. Every minute the scheduler calls
 ``tick(db, notifier, now)``. The tick recomputes what should have been sent
-from the DB (it holds no in-memory timers), so it is restart-safe, and every
-send is gated by the notification_log ledger, so it is idempotent.
+from the DB (it holds no in-memory timers). Completed ledger entries suppress
+repeat sends in sequential ticks; send-before-record crashes and concurrent
+workers can still duplicate SMS. See the delivery limits in REMINDER_ENGINE.md.
 
 ``now`` is a *naive* datetime representing local wall-clock time in
-APP_TIMEZONE. The timezone conversion is the scheduler's job (stage 4); this
-module stays pure and free of tz libraries, which keeps it trivially testable
+APP_TIMEZONE. The timezone conversion is the scheduler's job; this
+module stays free of tz libraries and is testable
 with an injected ``now`` and a fake ``notifier``.
 
 Escalation per unlogged dose:

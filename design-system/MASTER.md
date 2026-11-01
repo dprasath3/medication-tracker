@@ -1,6 +1,10 @@
 # Medication Tracker — Master Design System
 
-**Source of truth** for every UI decision. Page-specific overrides live in
+**Design specification and targets**, not a completed accessibility audit.
+Actual implementation lives in `src/ui/` and `src/pages/`. Some dimensions,
+font sizes, motion details, and chart colors still differ from this specification.
+
+**Source of truth** for design intent. Page-specific overrides live in
 `design-system/pages/<page-name>.md` and take precedence over this file only
 for that page.
 
@@ -96,7 +100,7 @@ Cream base + warm inks + coral accent. The everyday theme.
 
 ### 3.2 `cool-sage`
 
-Sage-cream + caring teal + warm orange. WCAG-verified.
+Sage-cream + caring teal + warm orange. Contrast target: WCAG AA; full verification remains open.
 
 ```css
 --surface-page:   #F1F6F2;
@@ -150,7 +154,7 @@ Soft dark mode — deep plum-navy, warm amber, never true black.
 
 ### 3.4 `high-contrast`
 
-WCAG AAA. For patients with low vision or in bright environments.
+AAA contrast is a design target, not verified conformance. For patients with low vision or in bright environments.
 
 ```css
 --surface-page:   #FFFFFF;
@@ -185,7 +189,7 @@ All theme × role combinations must satisfy:
 - Focus ring (`--ring`): **≥ 3:1** against `--surface-page`
 - Border on card: distinguishable in both light and dark themes
 
-`high-contrast` promotes every ratio to AAA.
+`high-contrast` aims for AAA ratios; measure every rendered role before claiming compliance.
 
 ---
 
