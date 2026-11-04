@@ -6,6 +6,8 @@ Patients see their circles and a shortcut to today's meds.
 
 from __future__ import annotations
 
+from html import escape
+
 import streamlit as st
 
 from ui.icons import icon
@@ -125,9 +127,9 @@ def _render_circles(circles: list[dict]) -> None:
         st.markdown(
             f"""
             <div class="med-card">
-              <h3 style="margin:0 0 var(--space-1) 0;">{c['name']}</h3>
+              <h3 style="margin:0 0 var(--space-1) 0;">{escape(c['name'])}</h3>
               <p class="muted tabular" style="margin:0;font-size:0.9375rem;">
-                Invite code: <span style="font-family:var(--font-mono);color:var(--text);">{c['invite_code']}</span>
+                Invite code: <span style="font-family:var(--font-mono);color:var(--text);">{escape(c['invite_code'])}</span>
               </p>
             </div>
             """,
@@ -161,7 +163,7 @@ def _render_alerts(data: dict) -> None:
         fg = "var(--warning)" if kind == "warning" else "var(--success)"
         st.markdown(
             f'<div class="med-card page-fade" style="background:{bg};color:{fg};'
-            f'border-color:{fg};padding: var(--space-4) var(--space-5);">{alert}</div>',
+            f'border-color:{fg};padding: var(--space-4) var(--space-5);">{escape(alert)}</div>',
             unsafe_allow_html=True,
         )
     divider(5)
@@ -182,9 +184,9 @@ def _render_patient_grid(db, data: dict, caller_id: int) -> None:
             <div class="med-card">
               <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-4);">
                 <div>
-                  <h3 style="margin:0 0 var(--space-1) 0;">{p['name']}</h3>
+                  <h3 style="margin:0 0 var(--space-1) 0;">{escape(p['name'])}</h3>
                   <p class="muted" style="margin:0;font-size:0.9375rem;">
-                    Age {p['age']} · {p['family_circle_name']} · {p['total_medications']} meds
+                    Age {escape(str(p['age']))} · {escape(p['family_circle_name'])} · {p['total_medications']} meds
                   </p>
                 </div>
                 <div>{status_pill(adh_display, pill_kind)}</div>
@@ -197,18 +199,18 @@ def _render_patient_grid(db, data: dict, caller_id: int) -> None:
             cols = st.columns([1, 1, 1])
             with cols[0]:
                 if st.button("View", key=f"view_{p['id']}", use_container_width=True):
-                    st.query_params["id"] = str(p["id"])
+                    st.session_state["selected_patient"] = p["id"]
                     switch_to("patient")
             with cols[1]:
                 if st.button("Add med", key=f"addmed_{p['id']}", use_container_width=True):
-                    st.query_params["patient"] = str(p["id"])
+                    st.session_state["add_medication_for"] = p["id"]
                     switch_to("add_med")
             with cols[2]:
                 if st.button("Log today", key=f"logtoday_{p['id']}", type="primary", use_container_width=True):
                     switch_to("today")
         else:
             if st.button("View", key=f"view_{p['id']}", use_container_width=True):
-                st.query_params["id"] = str(p["id"])
+                st.session_state["selected_patient"] = p["id"]
                 switch_to("patient")
         divider(3)
     stack_close()

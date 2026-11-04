@@ -15,6 +15,7 @@ from typing import Dict, Any, Optional, Tuple, List
 import bcrypt
 import phonenumbers
 from phonenumbers import NumberParseException
+from utils.db_factory import local_demo_enabled
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,7 +48,7 @@ _OTP_SECRET_BYTES = _OTP_SECRET.encode()
 # point at the public domain, so set APP_BASE_URL (e.g. https://app.example.com).
 # Trailing slashes are stripped so the "{base}/?verify_email=..." join never
 # produces a double slash. Resolved once at import, matching APP_TIMEZONE.
-APP_BASE_URL = os.getenv('APP_BASE_URL', 'http://localhost:8501').rstrip('/')
+APP_BASE_URL = (os.getenv('APP_BASE_URL') or 'http://localhost:8501').rstrip('/')
 if 'localhost' in APP_BASE_URL or '127.0.0.1' in APP_BASE_URL:
     logger.warning(
         "APP_BASE_URL is %r; emailed verify/reset links will point at localhost. "
@@ -140,7 +141,10 @@ class AuthService:
             phone, minutes=self.OTP_RATE_LIMIT_MINUTES
         )
 
-        if recent_attempts >= self.MAX_OTP_REQUESTS:
+        recent_requests = self.db.get_recent_otp_requests(
+            phone, minutes=self.OTP_RATE_LIMIT_MINUTES
+        )
+        if max(recent_attempts, recent_requests) >= self.MAX_OTP_REQUESTS:
             return False, f"Too many OTP requests. Please wait {self.OTP_RATE_LIMIT_MINUTES} minutes."
 
         return True, ""
@@ -169,6 +173,16 @@ class AuthService:
         if not allowed:
             return {'success': False, 'error': error}
 
+        sms_configured = bool(
+            self.notifications and getattr(self.notifications, 'twilio_client', None)
+        )
+        show_dev_otp = (
+            not sms_configured and local_demo_enabled()
+            and os.getenv('MEDSYNC_DEV_SHOW_OTP') == '1'
+        )
+        if not sms_configured and not show_dev_otp:
+            return {'success': False, 'error': 'Phone sign-in is unavailable because SMS is not configured. Use email sign-in.'}
+
         # Check if user exists for login
         user = self.db.get_user_by_phone(normalized_phone)
         user_id = user['id'] if user else None
@@ -177,6 +191,10 @@ class AuthService:
             # For login, user must exist - but don't reveal this for security
             # Still send OTP to prevent phone enumeration
             pass
+
+        # Count issuance attempts, including failed delivery, separately from
+        # verification failures. Replacing a pending OTP must not reset the limit.
+        self.db.record_login_attempt(normalized_phone, "otp_request", True)
 
         # Generate OTP
         otp = self._generate_otp()
@@ -194,9 +212,6 @@ class AuthService:
         # Send OTP via SMS. Having a NotificationService instance is not the
         # same as SMS being configured — without Twilio credentials send_sms
         # always fails, which used to dead-end signup on dev machines.
-        sms_configured = bool(
-            self.notifications and getattr(self.notifications, 'twilio_client', None)
-        )
         if sms_configured:
             message = f"Your FamilyCare verification code is: {otp}. Valid for {self.OTP_EXPIRY_MINUTES} minutes."
             sent = self.notifications.send_sms(normalized_phone, message)
@@ -208,18 +223,19 @@ class AuthService:
                 }
         else:
             # For development without SMS configured
-            logger.info(f"[DEV] OTP for {normalized_phone}: {otp}")
+            logger.info("SMS is disabled; no verification message was sent.")
 
         result = {
             'success': True,
-            'message': f'Verification code sent to {self.format_phone_display(normalized_phone)}',
+            'message': (f'Verification code sent to {self.format_phone_display(normalized_phone)}'
+                        if sms_configured else 'Local test code created. No SMS was sent.'),
             'phone': normalized_phone,
             'expires_in': self.OTP_EXPIRY_MINUTES * 60  # seconds
         }
-        if not sms_configured and os.getenv('MEDSYNC_DEV_SHOW_OTP') == '1':
+        if show_dev_otp:
             # Dev-only escape hatch: exposing the OTP to the requester lets
             # anyone sign in as any phone number, so it must never be on in
-            # production. Requires the env var to be set explicitly.
+            # production. Requires both local-demo flags and no cloud settings.
             result['dev_otp'] = otp
         return result
 

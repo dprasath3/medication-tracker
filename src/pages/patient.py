@@ -1,8 +1,4 @@
-"""Patient page — split from the original monolithic web_app.py.
-
-Behaviour is preserved verbatim from the pre-modernization app. The visual
-redesign against ``design-system/MASTER.md`` happens in Commit 4.
-"""
+"""Authorized patient history, schedule, and medication management."""
 
 from __future__ import annotations
 
@@ -112,7 +108,7 @@ def show_patient_details():
     st.plotly_chart(fig, use_container_width=True)
 
     # Medication schedule
-    st.markdown("## ⏰ Today's Medication Schedule")
+    st.markdown("## Today's Medication Schedule")
 
     medications = db.get_patient_medications(user["id"], patient_id)
 
@@ -130,7 +126,7 @@ def show_patient_details():
                 if log:
                     status = "Taken" if log[0] else "Missed"
                 else:
-                    status = "⏳ Pending"
+                    status = "Pending"
 
                 schedule_data.append(
                     {

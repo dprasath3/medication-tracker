@@ -2,6 +2,15 @@
 import os
 
 
+def local_demo_enabled() -> bool:
+    """Explicit demo opt-in, disabled if either cloud setting is present."""
+    return (
+        os.getenv("MEDSYNC_LOCAL_DEMO") == "1"
+        and not os.getenv("SUPABASE_URL")
+        and not os.getenv("SUPABASE_KEY")
+    )
+
+
 def get_database():
     """Get the appropriate database instance based on environment.
 

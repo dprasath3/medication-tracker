@@ -1,8 +1,4 @@
-"""Auth page — split from the original monolithic web_app.py.
-
-Behaviour is preserved verbatim from the pre-modernization app. The visual
-redesign against ``design-system/MASTER.md`` happens in Commit 4.
-"""
+"""Phone/email authentication pages and explicitly gated local demo flows."""
 
 from __future__ import annotations
 
@@ -19,6 +15,7 @@ import plotly.graph_objects as go
 from models.family import FamilyCircleManager
 from services.auth import AuthService
 from services.notifications import NotificationService
+from utils.db_factory import local_demo_enabled as _local_demo_enabled
 from utils.session import (
     db as _db, family_manager as _family_manager,
     auth_service as _auth_service, notification_service as _notification_service,
@@ -127,29 +124,30 @@ def show_phone_login():
                 st.rerun()
 
             # Demo options
-    st.markdown("---")
-    with st.expander("Demo Options", expanded=False):
-        st.markdown("**For demo/portfolio purposes:**")
-        st.info(
-            "In demo mode, OTP codes are logged to console. Check terminal for the code."
-        )
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Skip Login (Guest Mode)", type="secondary"):
-                _sign_in_as_guest()
-                st.rerun()
-        with col2:
-            if st.button("Reset All Data", type="secondary"):
-                db_path = "data/medications.db"
-                if os.path.exists(db_path):
-                    os.remove(db_path)
-                # Clear DB/auth singletons so the next request re-initialises
-                # against the fresh (empty) database.
-                st.cache_resource.clear()
-                for key in list(st.session_state.keys()):
-                    del st.session_state[key]
-                st.success("All data cleared. Signing you out.")
-                st.rerun()
+    if _local_demo_enabled():
+        st.markdown("---")
+        with st.expander("Demo Options", expanded=False):
+            st.markdown("**For demo/portfolio purposes:**")
+            st.info(
+                "Local demo only. Enable MEDSYNC_DEV_SHOW_OTP=1 to display a test code in the verification screen."
+            )
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Skip Login (Guest Mode)", type="secondary"):
+                    _sign_in_as_guest()
+                    st.rerun()
+            with col2:
+                if st.button("Reset All Data", type="secondary"):
+                    db_path = "data/medications.db"
+                    if os.path.exists(db_path):
+                        os.remove(db_path)
+                    # Clear DB/auth singletons so the next request re-initialises
+                    # against the fresh (empty) database.
+                    st.cache_resource.clear()
+                    for key in list(st.session_state.keys()):
+                        del st.session_state[key]
+                    st.success("All data cleared. Signing you out.")
+                    st.rerun()
 
 
 def _sign_in_as_guest() -> None:
@@ -160,6 +158,8 @@ def _sign_in_as_guest() -> None:
     with a real user record. The Guest row lives in the DB like any other
     user, which keeps us honest about the "no fake data" rule in CLAUDE.md.
     """
+    if not _local_demo_enabled():
+        raise PermissionError("Guest access is available only in a local demo")
     db, _ = init_database()
     users = db.get_users()
     guest = next((u for u in users if u.get("email") == "guest@demo.local"), None)
@@ -172,6 +172,7 @@ def _sign_in_as_guest() -> None:
         )
         guest = db.get_user_by_id(guest_id)
 
+    persist_session_token(get_auth_service()._create_session_token(guest["id"]))
     st.session_state.user_profile = {
         "id": guest["id"],
         "name": guest["name"],
@@ -484,23 +485,11 @@ def show_email_login():
                 else:
                     st.error("Please enter your email address")
 
-                    # Demo options
-    with st.expander("Demo Options", expanded=False):
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Skip Login (Guest)", type="secondary", key="guest_email"):
-                st.session_state.show_login = False
-                st.session_state.auth_step = "phone"
+    if _local_demo_enabled():
+        with st.expander("Demo Options", expanded=False):
+            if st.button("Skip Login (Guest)", key="guest_email"):
+                _sign_in_as_guest()
                 st.rerun()
-        with col2:
-            if st.button("Reset All Data", type="secondary", key="reset_email_page"):
-                db_path = "data/medications.db"
-                if os.path.exists(db_path):
-                    os.remove(db_path)
-                    for key in list(st.session_state.keys()):
-                        del st.session_state[key]
-                    st.success("All data cleared!")
-                    st.rerun()
 
 
 
@@ -768,6 +757,9 @@ def show_welcome_screen():
 
 def show_profile_setup():
     """Show profile setup form."""
+    if not _local_demo_enabled():
+        st.info("Use Create an account to register with authentication.")
+        return
     user_type = st.session_state.get("user_type", "family_member")
 
     st.markdown("# Set Up Your Profile")
@@ -823,6 +815,7 @@ def show_profile_setup():
                     try:
                         user_id = db.add_user(name, email, age, user_type, phone)
 
+                        persist_session_token(get_auth_service()._create_session_token(user_id))
                         st.session_state.user_profile = {
                             "id": user_id,
                             "name": name,
@@ -849,8 +842,13 @@ def show_profile_setup():
 def render() -> None:
     """Dispatch to the correct auth sub-screen based on session state."""
     init_session_state()
-    # Explicit routes via query params take precedence over legacy flags.
-    mode = st.query_params.get("mode", "phone")
+    # Consume primary auth links once so they cannot override Back or the next
+    # OTP/registration step. Legacy demo forms retain their routing parameter.
+    mode = st.query_params.get("mode")
+    if mode in {"register", "email", "phone"}:
+        st.query_params.pop("mode", None)
+        st.session_state["show_register"] = mode == "register"
+        st.session_state["auth_step"] = "email_login" if mode == "email" else "phone"
     if mode == "register":
         show_register_screen()
     elif mode == "email":
@@ -859,6 +857,8 @@ def render() -> None:
         show_welcome_screen()
     elif mode == "profile-setup":
         show_profile_setup()
+    elif st.session_state.get("auth_step") == "email_login":
+        show_email_login()
     elif st.session_state.get("auth_step") == "otp":
         show_otp_verification()
     elif st.session_state.get("auth_step") == "complete_profile":

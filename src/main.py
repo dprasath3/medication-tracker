@@ -15,6 +15,9 @@ from dotenv import load_dotenv
 # Add the current directory to the path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# Scheduler configuration is resolved during import. Load .env first.
+load_dotenv()
+
 from utils.authz import SYSTEM_CALLER
 from utils.db_factory import get_database
 from services.scheduler import MedicationScheduler

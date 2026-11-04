@@ -87,7 +87,7 @@ class MedicationScheduler:
         """Schedule weekly compliance reports (every Sunday at 6 PM local)."""
         self.scheduler.add_job(
             func=self._generate_and_send_weekly_reports,
-            trigger=CronTrigger(day_of_week='sun', hour=18, minute=0),
+            trigger=CronTrigger(day_of_week='sun', hour=18, minute=0, timezone=self._tz),
             id='weekly_reports',
             name='Weekly Compliance Reports',
             replace_existing=True,

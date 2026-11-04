@@ -28,7 +28,7 @@ THEME_DESCRIPTIONS = {
     "warm-cream": "Cream and terracotta. Everyday.",
     "cool-sage": "Sage and caring teal. Calmer tones.",
     "twilight": "Soft warm dark. Evening use.",
-    "high-contrast": "WCAG AAA. Low vision or bright rooms.",
+    "high-contrast": "High contrast for low vision or bright rooms.",
 }
 
 

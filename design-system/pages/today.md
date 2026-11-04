@@ -3,6 +3,10 @@
 **Overrides MASTER for this screen only.** Everything unstated inherits from
 `../MASTER.md`.
 
+> This is the original design intent. The current screen has a 120px ring,
+> Streamlit action buttons below cards, and session-local snooze; not every
+> planned layout or animation below is implemented. See `src/pages/today.py`.
+
 ## Intent
 
 The single most important screen in the product. A patient opens the app,

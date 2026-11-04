@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from html import escape
+
 import streamlit as st
 
 from ui.theme import THEMES, THEME_LABELS, THEME_DESCRIPTIONS, get_current_theme, set_theme
@@ -46,10 +48,10 @@ def render() -> None:
 
     st.markdown('<h2>Profile</h2>', unsafe_allow_html=True)
     st.markdown(
-        f'<div class="med-card"><p style="margin:0;"><strong>{user["name"]}</strong></p>'
-        f'<p class="muted" style="margin:0.25rem 0 0 0;">{user.get("email", "")}</p>'
+        f'<div class="med-card"><p style="margin:0;"><strong>{escape(user["name"])}</strong></p>'
+        f'<p class="muted" style="margin:0.25rem 0 0 0;">{escape(user.get("email") or "")}</p>'
         f'<p class="subtle" style="margin:0.25rem 0 0 0; font-size: 0.9375rem;">'
-        f'{user.get("type", "user").title()}</p></div>',
+        f'{escape(user.get("type", "user").title())}</p></div>',
         unsafe_allow_html=True,
     )
 

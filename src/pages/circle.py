@@ -1,8 +1,4 @@
-"""Circle page — split from the original monolithic web_app.py.
-
-Behaviour is preserved verbatim from the pre-modernization app. The visual
-redesign against ``design-system/MASTER.md`` happens in Commit 4.
-"""
+"""Family circle creation, joining, and creator-controlled caregiver permissions."""
 
 from __future__ import annotations
 
@@ -122,6 +118,7 @@ def show_create_family_circle():
                     }
                 )
 
+                invalidate_read_caches()
                 st.session_state.show_create_circle = False
                 st.session_state.circle_created = True
                 st.session_state.new_invite_code = invite_code
@@ -217,6 +214,7 @@ def show_join_family_circle():
                 )
 
                 if success:
+                    invalidate_read_caches()
                     st.success("Successfully joined the family circle!")
                     st.session_state.show_join_circle = False
                     st.session_state.onboarding_complete = True
