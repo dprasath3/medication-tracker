@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import sys
+from html import escape
 
 # Make ``import ui`` / ``import pages`` / ``import utils`` work when Streamlit
 # launches the app from the repo root.
@@ -66,7 +67,7 @@ theme.inject()
 init_session_state()
 
 # Rehydrate a signed-in user from a persisted ?token= after a browser refresh,
-# before the router or sidebar read current_user(). No-op if already signed in.
+# before the router or sidebar read current_user(). Revalidate on every rerun.
 restore_session()
 
 # Hydrate theme from the persisted user profile if we don't have one for this session.
@@ -90,10 +91,10 @@ def _render_sidebar() -> None:
             <div style="padding: var(--space-3) 0 var(--space-4) 0;">
               <div style="font-family: var(--font-heading); font-size: 1.125rem;
                           font-weight: 600; color: var(--text-strong);">
-                  {user['name']}
+                  {escape(user['name'])}
               </div>
               <div class="muted" style="font-size: 0.875rem; margin-top: 2px;">
-                  {user.get('type', 'user').title()}
+                  {escape(user.get('type', 'user').title())}
               </div>
             </div>
             """,

@@ -4,7 +4,7 @@ Verified against source during the November 1, 2026 portfolio review. This descr
 
 ## Request and authorization flow
 
-1. `src/web_app.py` loads environment configuration, restores a session, builds role-dependent `st.navigation`, and renders one page.
+1. `src/web_app.py` loads environment configuration, revalidates/restores a session on every rerun, builds role-dependent `st.navigation`, and renders one page. Invalid sessions clear identity, routing state, and read caches before any authenticated page runs.
 2. `utils/session.py` caches database/auth/notification services with `st.cache_resource`. Patient read caches include caller identity, preventing cross-caller cache reuse; current TTLs range from 15 to 60 seconds. Mutation paths clear read caches.
 3. Pages get caller identity from server session state. Patient IDs from URLs are untrusted. `get_patient`, medication reads/writes, dose logging, and history queries authorize in the adapter through `PatientAuthorizationMixin`.
 4. The policy allows self-access; shared-circle `view` for reads; shared-circle `manage_meds` for writes. Medication-ID operations first resolve their owning patient, then authorize before mutation. Circle creators alone may change `manage_meds` permissions.
@@ -69,4 +69,4 @@ SQLite initializes tables on startup. Supabase requires manual schema preparatio
 | `/add-med?patient=…` | Add medication for an authorized patient; writes require `manage_meds` or self-access |
 | `/circle`, `/onboarding`, `/settings`, `/home` | Circle flows, setup, themes/sign-out, home redirect |
 
-Auth substeps mostly live in session state, with some `?mode=` compatibility links. The originally planned `/auth/otp` and `/patients/<id>` routes are not implemented. `st.switch_page` can clear query parameters; in-app patient navigation now stores selection in session state. URL token persistence across page navigation remains a security/usability follow-up.
+Auth substeps mostly live in session state; primary `?mode=email`/`register`/`phone` compatibility links are consumed once so Back and subsequent steps can take effect. Legacy demo routes retain their query parameter. The originally planned `/auth/otp` and `/patients/<id>` routes are not implemented. `st.switch_page` can clear query parameters; in-app patient navigation stores selection in session state, and the next rerun restores the URL token only after validation. Replacing URL bearer-token transport remains security follow-up work.

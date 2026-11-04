@@ -699,10 +699,12 @@ class MedicationDB(PatientAuthorizationMixin):
     def get_recent_otp_requests(self, identifier: str, minutes: int = 10) -> int:
         """Count OTP issuance attempts independently of verification failures."""
         since = (datetime.now() - timedelta(minutes=minutes)).isoformat()
-        result = self.client.table('login_attempts').select('id', count='exact').eq(
+        result = self.client.table('login_attempts').select('id', count='exact', head=True).eq(
             'identifier', identifier
         ).eq('attempt_type', 'otp_request').gt('timestamp', since).execute()
-        return result.count or 0
+        if result.count is None:
+            raise RuntimeError("OTP request count is unavailable")
+        return result.count
 
     def set_lockout(self, identifier: str, lockout_minutes: int = 30) -> bool:
         """Set lockout for an identifier."""

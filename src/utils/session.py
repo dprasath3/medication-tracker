@@ -127,30 +127,32 @@ def persist_session_token(token: str) -> None:
 def restore_session() -> None:
     """Rehydrate the signed-in user from a persisted token. Idempotent.
 
-    No-op if a profile is already loaded for this connection. Otherwise resolves
-    ``?token=`` (or a token already in session_state) against the auth service
-    and repopulates ``user_profile``. A stale/expired token is cleared so we
-    don't loop on a dead param.
+    Validate on every rerun, including already-loaded profiles, so revocation
+    and expiry take effect on the next interaction. URL transport is retained
+    for compatibility; it is a documented security limitation.
     """
-    if st.session_state.get("user_profile") is not None:
-        return
-
+    previous_profile = st.session_state.get("user_profile")
     token = st.session_state.get("session_token") or st.query_params.get(TOKEN_PARAM)
     if not token:
+        if previous_profile is not None:
+            _clear_session_state()
         return
 
     user = _auth_service_singleton().validate_session(token)
     if not user:
-        st.query_params.pop(TOKEN_PARAM, None)
-        st.session_state["session_token"] = None
+        _clear_session_state()
         return
 
     st.session_state["session_token"] = token
     st.session_state["user_profile"] = _profile_from_user(user)
-    st.query_params[TOKEN_PARAM] = token
+    if st.query_params.get(TOKEN_PARAM) != token:
+        st.query_params[TOKEN_PARAM] = token
 
     if st.session_state.get("theme") is None and user.get("theme"):
         st.session_state["theme"] = user["theme"]
+
+    if previous_profile is not None and previous_profile["id"] == user["id"]:
+        return
 
     try:
         circles = _db_singleton().get_user_family_circles(user["id"])
@@ -180,6 +182,11 @@ def sign_out() -> None:
             auth_service().logout(token)
         except Exception:
             pass
+    _clear_session_state()
+
+
+def _clear_session_state() -> None:
+    """Discard identity, routing, and cached reads after logout/invalid auth."""
     # Drop the persisted token from the URL so a post-logout refresh does not
     # silently sign the user back in on a still-valid token.
     st.query_params.pop(TOKEN_PARAM, None)

@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 for name in (
     "SUPABASE_URL", "SUPABASE_KEY", "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN",
     "TWILIO_PHONE_NUMBER", "EMAIL_ADDRESS", "EMAIL_PASSWORD", "MEDSYNC_DEV_SHOW_OTP",
+    "MEDSYNC_LOCAL_DEMO",
 ):
     os.environ[name] = ""
 os.environ["PYTHON_DOTENV_DISABLED"] = "1"

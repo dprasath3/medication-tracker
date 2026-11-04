@@ -9,6 +9,10 @@ GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated;
 \ir ../../supabase_schema.sql
+-- Model an existing project's renamed sequence and permissive old policy.
+ALTER SEQUENCE public.users_id_seq RENAME TO imported_users_sequence;
+CREATE POLICY old_client_read ON public.users FOR SELECT TO anon USING (true);
+GRANT SELECT (name) ON public.users TO anon;
 \ir ../../supabase_schema.sql
 
 SET LOCAL ROLE service_role;
@@ -27,6 +31,7 @@ DECLARE
     client_role text;
     app_table text;
     operation text;
+    id_sequence text;
     total integer;
 BEGIN
     SELECT count(*) INTO total FROM pg_tables
@@ -39,6 +44,22 @@ BEGIN
                     RAISE EXCEPTION 'Unexpected % privilege for % on %', operation, client_role, app_table;
                 END IF;
             END LOOP;
+            IF has_any_column_privilege(client_role, 'public.' || app_table, 'SELECT') THEN
+                RAISE EXCEPTION 'Unexpected column read for % on %', client_role, app_table;
+            END IF;
+            id_sequence := pg_get_serial_sequence('public.' || app_table, 'id');
+            FOREACH operation IN ARRAY ARRAY['USAGE', 'SELECT', 'UPDATE'] LOOP
+                IF has_sequence_privilege(client_role, id_sequence, operation) THEN
+                    RAISE EXCEPTION 'Unexpected % for % on sequence %', operation, client_role, id_sequence;
+                END IF;
+            END LOOP;
+        END LOOP;
+    END LOOP;
+    FOR app_table IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+        FOREACH operation IN ARRAY ARRAY['SELECT', 'INSERT', 'UPDATE', 'DELETE'] LOOP
+            IF NOT has_table_privilege('service_role', 'public.' || app_table, operation) THEN
+                RAISE EXCEPTION 'Missing server % on %', operation, app_table;
+            END IF;
         END LOOP;
     END LOOP;
 END $$;

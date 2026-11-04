@@ -31,9 +31,10 @@ def db(tmp_path):
 
 
 @pytest.fixture
-def auth(db):
-    # No notification service -> SMS is "not configured", so request_otp logs
-    # the code and returns success without needing Twilio.
+def auth(db, monkeypatch):
+    # Explicit disposable local mode returns a test code without sending SMS.
+    monkeypatch.setenv("MEDSYNC_LOCAL_DEMO", "1")
+    monkeypatch.setenv("MEDSYNC_DEV_SHOW_OTP", "1")
     return AuthService(db=db)
 
 

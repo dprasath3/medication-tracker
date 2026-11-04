@@ -15,6 +15,7 @@ from typing import Dict, Any, Optional, Tuple, List
 import bcrypt
 import phonenumbers
 from phonenumbers import NumberParseException
+from utils.db_factory import local_demo_enabled
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -172,6 +173,16 @@ class AuthService:
         if not allowed:
             return {'success': False, 'error': error}
 
+        sms_configured = bool(
+            self.notifications and getattr(self.notifications, 'twilio_client', None)
+        )
+        show_dev_otp = (
+            not sms_configured and local_demo_enabled()
+            and os.getenv('MEDSYNC_DEV_SHOW_OTP') == '1'
+        )
+        if not sms_configured and not show_dev_otp:
+            return {'success': False, 'error': 'Phone sign-in is unavailable because SMS is not configured. Use email sign-in.'}
+
         # Check if user exists for login
         user = self.db.get_user_by_phone(normalized_phone)
         user_id = user['id'] if user else None
@@ -201,9 +212,6 @@ class AuthService:
         # Send OTP via SMS. Having a NotificationService instance is not the
         # same as SMS being configured — without Twilio credentials send_sms
         # always fails, which used to dead-end signup on dev machines.
-        sms_configured = bool(
-            self.notifications and getattr(self.notifications, 'twilio_client', None)
-        )
         if sms_configured:
             message = f"Your FamilyCare verification code is: {otp}. Valid for {self.OTP_EXPIRY_MINUTES} minutes."
             sent = self.notifications.send_sms(normalized_phone, message)
@@ -219,14 +227,15 @@ class AuthService:
 
         result = {
             'success': True,
-            'message': f'Verification code sent to {self.format_phone_display(normalized_phone)}',
+            'message': (f'Verification code sent to {self.format_phone_display(normalized_phone)}'
+                        if sms_configured else 'Local test code created. No SMS was sent.'),
             'phone': normalized_phone,
             'expires_in': self.OTP_EXPIRY_MINUTES * 60  # seconds
         }
-        if not sms_configured and os.getenv('MEDSYNC_DEV_SHOW_OTP') == '1':
+        if show_dev_otp:
             # Dev-only escape hatch: exposing the OTP to the requester lets
             # anyone sign in as any phone number, so it must never be on in
-            # production. Requires the env var to be set explicitly.
+            # production. Requires both local-demo flags and no cloud settings.
             result['dev_otp'] = otp
         return result
 

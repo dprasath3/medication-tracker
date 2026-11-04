@@ -44,6 +44,8 @@ python -m playwright install chromium
 python scripts/capture_demo.py
 ```
 
-The script starts its own isolated app on port 8502, signs in through the actual email/password form, exercises logging/snooze and caregiver navigation, checks view-only controls and a 375px viewport, and captures the rendered app at 1440×1280. It does not edit the DOM or manufacture UI states. Browser requests outside loopback are blocked, so external fonts may render with fallbacks. Images are viewport captures; content below the viewport remains scrollable in the application.
+The script starts its own isolated app on an unused loopback port, signs in through the actual email/password form, exercises logging/snooze and caregiver navigation, checks view-only controls and a 375px viewport, and captures the rendered app at 1440×1280. After those captures, it submits an additional synthetic medication, checks valid-session refresh, denied write/forged-ID routes, server-side revocation, Back navigation, and guest refresh. It does not edit the DOM or manufacture UI states. Browser requests outside loopback are blocked, so external fonts may render with fallbacks. Images are viewport captures; content below the viewport remains scrollable in the application.
+
+Use `--output-dir /tmp/medsync-review-captures` to run the check without replacing the committed November 1 screenshots. Those original captures were preserved and re-inspected during the final review.
 
 No SMS, email, worker, hosted database, or live-deployment claim is involved. The script terminates its child server and deletes its temporary data in `finally` blocks.

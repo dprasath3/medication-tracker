@@ -1,8 +1,4 @@
-"""Auth page — split from the original monolithic web_app.py.
-
-Behaviour is preserved verbatim from the pre-modernization app. The visual
-redesign against ``design-system/MASTER.md`` happens in Commit 4.
-"""
+"""Phone/email authentication pages and explicitly gated local demo flows."""
 
 from __future__ import annotations
 
@@ -19,6 +15,7 @@ import plotly.graph_objects as go
 from models.family import FamilyCircleManager
 from services.auth import AuthService
 from services.notifications import NotificationService
+from utils.db_factory import local_demo_enabled as _local_demo_enabled
 from utils.session import (
     db as _db, family_manager as _family_manager,
     auth_service as _auth_service, notification_service as _notification_service,
@@ -153,15 +150,6 @@ def show_phone_login():
                     st.rerun()
 
 
-def _local_demo_enabled() -> bool:
-    """Guest/reset controls are opt-in and never enabled with a cloud backend."""
-    return (
-        os.getenv("MEDSYNC_LOCAL_DEMO") == "1"
-        and not os.getenv("SUPABASE_URL")
-        and not os.getenv("SUPABASE_KEY")
-    )
-
-
 def _sign_in_as_guest() -> None:
     """Guest bypass — create or fetch a real 'Guest' patient row and sign in as them.
 
@@ -184,6 +172,7 @@ def _sign_in_as_guest() -> None:
         )
         guest = db.get_user_by_id(guest_id)
 
+    persist_session_token(get_auth_service()._create_session_token(guest["id"]))
     st.session_state.user_profile = {
         "id": guest["id"],
         "name": guest["name"],
@@ -826,6 +815,7 @@ def show_profile_setup():
                     try:
                         user_id = db.add_user(name, email, age, user_type, phone)
 
+                        persist_session_token(get_auth_service()._create_session_token(user_id))
                         st.session_state.user_profile = {
                             "id": user_id,
                             "name": name,
@@ -852,8 +842,13 @@ def show_profile_setup():
 def render() -> None:
     """Dispatch to the correct auth sub-screen based on session state."""
     init_session_state()
-    # Explicit routes via query params take precedence over legacy flags.
-    mode = st.query_params.get("mode", "phone")
+    # Consume primary auth links once so they cannot override Back or the next
+    # OTP/registration step. Legacy demo forms retain their routing parameter.
+    mode = st.query_params.get("mode")
+    if mode in {"register", "email", "phone"}:
+        st.query_params.pop("mode", None)
+        st.session_state["show_register"] = mode == "register"
+        st.session_state["auth_step"] = "email_login" if mode == "email" else "phone"
     if mode == "register":
         show_register_screen()
     elif mode == "email":

@@ -1,8 +1,19 @@
 # Verification record
 
-Review date: November 1, 2026. Baseline: `e8e59c48208e42c7b6de9b0bffa45d75ed5ddfe1`.
+Initial review: November 1, 2026. Final review: November 4, 2026. Baseline: `e8e59c48208e42c7b6de9b0bffa45d75ed5ddfe1`.
 
-## Results
+## Final review results (November 4)
+
+- Before fixes, the existing branch suite passed: **82 tests in 5.23s**, plus Ruff, in a fresh Python 3.11.17 environment.
+- The first new review tests reproduced **10 failures and 1 pass** against `84860b9`. They cover gaps in session revalidation, OTP demo gating, routing, and HTML escaping; these are not ten separately introduced PR vulnerabilities.
+- After fixes and expanded coverage: **99 tests passed in 4.11s**; **Ruff passed**. The additional cases include the Supabase OTP count contract with zero/large/missing totals and redaction of provider errors.
+- The expanded real Chromium walkthrough **passed**: original sign-in/logging/snooze/views, medication submission, valid-session refresh, forbidden write form, unrelated-patient denial, loaded-session revocation, auth Back navigation, guest refresh, and 375px rendering. It used an unused loopback port and a disposable synthetic SQLite database.
+- The strengthened SQL script **passed locally with PGlite**: twelve table boundaries, table/column/sequence denial, server privileges and CRUD, preserved denial despite an old permissive policy, and repeat application after a sequence rename. The prior schema reproduced a missing `users_id_seq` error with that renamed-sequence fixture.
+- Fresh captures went to a scratch directory; the original three November 1 screenshots were visually reviewed and preserved. Browser tests are a local smoke check, not a GitHub Actions job or a complete mobile/accessibility audit.
+
+Current remote CI evidence will be linked from the PR after the final-review commit is pushed. Earlier run IDs below only establish the earlier revisions' results.
+
+## Initial review results (November 1)
 
 | Check | Result | Scope |
 | --- | --- | --- |
@@ -44,7 +55,7 @@ In a **new disposable local database** using an administrative test role:
 psql -d medsync_test -v ON_ERROR_STOP=1 -f tests/sql/server_access.sql
 ```
 
-The script creates test roles, models older permissive client defaults, applies the schema twice, verifies server-role CRUD and client restrictions, then rolls back. Never run it against a production project. The CI job uses an ephemeral PostgreSQL 16 service. The local environment did not provide PostgreSQL server binaries; the same SQL was also executed through PGlite after expanding psql `\ir` includes. Hosted Supabase/PostgREST was not contacted.
+The script creates test roles, models older permissive client defaults, applies the schema twice (with a renamed sequence and permissive-policy fixture between applications), verifies server-role CRUD and client table/column/sequence restrictions, then rolls back. Never run it against a production project. The CI job uses an ephemeral PostgreSQL 16 service. The local environment did not provide PostgreSQL server binaries; the same SQL was also executed through PGlite after expanding psql `\ir` includes. Hosted Supabase/PostgREST was not contacted.
 
 ## What these checks do not establish
 
@@ -52,5 +63,5 @@ The script creates test roles, models older permissive client defaults, applies 
 - Actual Twilio delivery, SMTP delivery, consent/recipient correctness, or medication safety.
 - Exactly-once delivery under crashes or multiple workers, per-recipient retry, midnight/DST behavior, or performance at scale.
 - Full password-reset/email-verification browser flows; their route handlers are absent.
-- Full session lifecycle behavior in a browser, all page/role combinations, all themes, keyboard/screen-reader behavior, or WCAG conformance.
+- All session lifecycle combinations (beyond tested refresh/revocation), all page/role combinations, all themes, keyboard/screen-reader behavior, or WCAG conformance.
 - Complete vulnerability/advisory absence. The bounded source/history scan is described in [SECURITY.md](../SECURITY.md).

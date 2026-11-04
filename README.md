@@ -88,7 +88,7 @@ cp .env.example .env
 streamlit run src/web_app.py
 ```
 
-SQLite is created at `data/medications.db`, relative to the launch directory. Register with email/password, or explicitly enable `MEDSYNC_DEV_SHOW_OTP=1` for local phone-flow testing without SMS. That flag exposes test codes and must stay off in deployed environments. Guest/reset controls require `MEDSYNC_LOCAL_DEMO=1` and no Supabase configuration.
+SQLite is created at `data/medications.db`, relative to the launch directory. Register with email/password, or explicitly enable **both** `MEDSYNC_LOCAL_DEMO=1` and `MEDSYNC_DEV_SHOW_OTP=1` for local phone-flow testing without SMS and without Supabase configuration. Both flags must stay off in deployed environments. Guest/reset controls require the local-demo flag and no Supabase configuration. Without SMS or the explicit local test mode, phone sign-in reports that it is unavailable instead of claiming a code was sent.
 
 ### Optional cloud / worker configuration
 
@@ -111,7 +111,7 @@ python -m pytest -q
 ruff check .
 ```
 
-**Verified result:** 82 tests pass locally and in [GitHub CI](https://github.com/dprasath3/medication-tracker/actions/runs/41354502942), along with Ruff and the PostgreSQL 16 access-boundary job. The audit baseline at `e8e59c4` had 67 passing tests; this branch adds 15 regression cases. [Exact verification results, commands, and limits](docs/TESTING.md) are recorded separately; the badge links to the real workflow and reports **main**, not an unmerged PR.
+**Verified local result:** 99 Python tests and Ruff pass after the final review, up from 67 tests at baseline `e8e59c4`. The prior 82-test revision also passed [GitHub CI](https://github.com/dprasath3/medication-tracker/actions/runs/41354675085), including the PostgreSQL 16 access-boundary job. [Exact verification results, commands, and limits](docs/TESTING.md) distinguish each revision; the badge links to the real workflow and reports **main**, not an unmerged PR. [Final review and merge conditions](docs/FINAL_REVIEW.md).
 
 | Area | Evidence |
 | --- | --- |
@@ -122,6 +122,7 @@ ruff check .
 | Scheduler wiring and timezone | [`tests/test_scheduler.py`](tests/test_scheduler.py) |
 | Demo isolation / actual browser walkthrough | [`tests/test_demo.py`](tests/test_demo.py), [`scripts/capture_demo.py`](scripts/capture_demo.py) |
 | Database API roles | [`tests/sql/server_access.sql`](tests/sql/server_access.sql), [CI](.github/workflows/ci.yml) |
+| Final security regressions | [`tests/test_final_review.py`](tests/test_final_review.py): session revalidation, demo OTP gating, rendering, and Supabase count contract |
 
 ## Current limits and next steps
 

@@ -44,10 +44,11 @@ class NotificationService:
                 from_=self.twilio_phone,
                 to=to_phone
             )
-            logger.info(f"SMS sent successfully to {to_phone}: {message.sid}")
+            logger.info("SMS accepted by provider")
             return True
         except Exception as e:
-            logger.error(f"Failed to send SMS to {to_phone}: {str(e)}")
+            # Provider errors may include the recipient or message body (OTP).
+            logger.error("SMS provider request failed (%s)", type(e).__name__)
             return False
 
     def send_otp(self, to_phone: str, otp_code: str, expiry_minutes: int = 5) -> bool:

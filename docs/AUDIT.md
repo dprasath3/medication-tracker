@@ -1,6 +1,6 @@
 # Repository audit and change record
 
-**Review:** November 1, 2026. **Baseline:** `e8e59c4` on `main`.
+**Initial review:** November 1, 2026. **Final review:** November 4, 2026. **Baseline:** `e8e59c4` on `main`.
 **Goal:** make the existing MedSync project understandable, reproducible, and technically defensible for recruiting while preserving history and core functionality.
 
 ## Before → after
@@ -10,7 +10,7 @@
 | First impression | Generic repository title, run instructions before feature/engineering context | MedSync overview, verified feature/stack summary, source-linked engineering decisions, architecture, demo and testing sections |
 | Visual evidence | No app screenshots | Three real Chromium captures from disposable synthetic SQLite, plus reproducible demo/capture scripts |
 | Repository references | CI badge points at the former owner | Badge and clone instructions use `dprasath3/medication-tracker`; historical commit authors/messages remain intact |
-| Testing | 67 passing tests, successful existing CI | 82 passing Python tests, browser smoke check, and a PostgreSQL access-boundary CI job |
+| Testing | 67 passing tests, successful existing CI | 99 passing Python tests after final review, expanded browser smoke check, and a PostgreSQL access-boundary CI job |
 | Security explanation | Conflates service-role RLS bypass with no need for a client boundary | Separates application authorization from direct database API protection; proposes explicit schema restrictions and documents residual risks |
 | Reliability explanation | Claims restarting mid-send and multiple workers never duplicate SMS | Explains completed-ledger deduplication, send-before-record failure window, one-worker requirement, and partial-recipient behavior |
 | Historical documents | “Zero tests,” deferred engine, stale routes and unchecked plans read as current | Adds reconciliation map and labels design intent; preserves original technical rationale |
@@ -29,6 +29,8 @@ Centralized patient authorization shared by two adapters; explicit read-only sys
 There is no trained model, inference pipeline, model evaluation, or demonstrated ML feature. Describe the project as backend/security engineering with an optional future data-science extension.
 
 ## Every modification, grouped by purpose
+
+The table records the initial portfolio changes. [FINAL_REVIEW.md](FINAL_REVIEW.md) records the follow-up review, every additional fix, the complete 44-file review inventory, and merge/deployment conditions.
 
 | Files | Change |
 | --- | --- |
@@ -62,7 +64,7 @@ There is no trained model, inference pipeline, model evaluation, or demonstrated
 | P2 | Name/time-based dose identity, duplicate dose logs, host-local/UI date vs worker timezone, current-day catch-up only | Add medication/dose IDs and unique scheduled-dose records, define timestamp semantics, test midnight/DST and reactivation/schedule edits |
 | P2 | User-controlled text remains interpolated into some HTML views; sensitive fields can reach notification/worker logs | Finish escaping all render boundaries and redact logging; define retention and review recipient sharing |
 | P2 | Main invite flow uses non-expiring circle code; dynamic circle-create form fields can require an extra rerun; description/relationship fields are collected but not all persisted | Unify invitation implementation, audit forms with browser tests, either persist fields or clarify their UI |
-| P2 | In-memory profile may outlive revoked/expired token; caller-scoped cache can retain reads until expiry after cross-process revocation | Revalidate sessions and permission changes; test multi-session/multi-process behavior |
+| P2 | Session revocation now takes effect on the next rerun. Caller-scoped caches can still retain reads until TTL expiry after permission changes in another process | Test multi-session/multi-process permission invalidation; replace URL bearer transport |
 | P2 | Historical adherence excludes unlogged doses and the “7-day” query boundary can include an extra date; duplicate/name-colliding logs distort values | Define the metric and denominator, reconcile schedule instances, test exact date windows |
 | P2 | SQLite foreign-key enforcement is not enabled on each connection; permissive generic update methods rely on trusted kwargs | Add connection-level integrity checks and allowed-field validation with migration tests |
 | P2 | Dependencies are open ranges; optional Google Sheets/PDF packages are not evidence of working product integrations | Lock a reviewed environment, scan advisories, remove unused packages only after confirming consumers |
@@ -76,9 +78,9 @@ There is no trained model, inference pipeline, model evaluation, or demonstrated
 2. **Reliable dose/delivery model:** stable dose IDs, transactional claiming/outbox, per-recipient status, and consistent timezones. Acceptance: crash, duplicate-worker, partial-failure, midnight and DST tests.
 3. **Reproducible evaluation:** dependency locking, browser/backend contract coverage, accessibility checks; then an optional offline ML experiment on synthetic/licensed data with temporal splits, a simple baseline, calibration and leakage analysis. No clinical decision-making or predictive claims without evidence.
 
-## Proposed GitHub presentation settings — approval required
+## GitHub presentation settings — completed by owner
 
-These were prepared, not applied. Available GitHub tools do not expose repository-description/topic updates or profile pinning. The user requested approval before consequential settings/account changes.
+The owner confirmed on November 4 that the exact description, all twelve topics, and the MedSync profile pin were completed manually. These actions were not repeated; no browser authentication was attempted during the final review.
 
 **Description**
 
@@ -88,8 +90,8 @@ These were prepared, not applied. Available GitHub tools do not expose repositor
 
 `python`, `streamlit`, `postgresql`, `sqlite`, `supabase`, `authentication`, `authorization`, `application-security`, `apscheduler`, `pytest`, `github-actions`, `medication-tracker`
 
-Do not add `machine-learning`, `artificial-intelligence`, `hipaa-compliant`, or a deployment URL that has not been verified. After approval, set the About description/topics and pin `medication-tracker` on the personal profile if a slot is available. Do not remove an existing pin without reviewing the selection.
+No ML/compliance/deployment claim should be inferred from these topics. Existing profile pins were not removed by the agent.
 
 ## Preservation and actions not taken
 
-No merge, force push, history rewrite, visibility change, deployment change, credential upload, real notification, or production-data access. Settings and pinning are untouched. The original technical history and core workflows are retained; deliberately unsafe demo controls remain available only through local opt-in. Testing and screenshots demonstrate a local synthetic application, not a deployed medical product.
+No merge, force push, history rewrite, visibility change, deployment change, credential upload, real notification, or production-data access was performed by the agent. Settings/pinning were completed by the owner as recorded above. The original technical history and core workflows are retained; demo controls remain available only through explicit local opt-in. Testing and screenshots demonstrate a local synthetic application, not a deployed medical product.

@@ -114,7 +114,7 @@ CREATE TABLE IF NOT EXISTS otp_verifications (
     purpose TEXT DEFAULT 'login'
 );
 
--- User sessions (secure token-based)
+-- User sessions (bearer tokens; transport/storage limitations in SECURITY.md)
 CREATE TABLE IF NOT EXISTS user_sessions (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -194,6 +194,7 @@ CREATE INDEX IF NOT EXISTS idx_notification_log_lookup ON notification_log(patie
 DO $$
 DECLARE
     app_table text;
+    id_sequence text;
 BEGIN
     FOREACH app_table IN ARRAY ARRAY[
         'users', 'family_circles', 'family_members', 'medications', 'dose_logs',
@@ -203,7 +204,12 @@ BEGIN
         EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', app_table);
         EXECUTE format('REVOKE ALL ON TABLE public.%I FROM PUBLIC, anon, authenticated', app_table);
         EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.%I TO service_role', app_table);
-        EXECUTE format('REVOKE ALL ON SEQUENCE public.%I FROM PUBLIC, anon, authenticated', app_table || '_id_seq');
-        EXECUTE format('GRANT USAGE, SELECT ON SEQUENCE public.%I TO service_role', app_table || '_id_seq');
+        -- Existing projects may have renamed serial/identity sequences. Resolve
+        -- ownership from PostgreSQL instead of guessing the default name.
+        id_sequence := pg_get_serial_sequence(format('public.%I', app_table), 'id');
+        IF id_sequence IS NOT NULL THEN
+            EXECUTE format('REVOKE ALL ON SEQUENCE %s FROM PUBLIC, anon, authenticated', id_sequence);
+            EXECUTE format('GRANT USAGE, SELECT ON SEQUENCE %s TO service_role', id_sequence);
+        END IF;
     END LOOP;
 END $$;

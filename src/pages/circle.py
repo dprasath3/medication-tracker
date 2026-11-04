@@ -1,8 +1,4 @@
-"""Circle page — split from the original monolithic web_app.py.
-
-Behaviour is preserved verbatim from the pre-modernization app. The visual
-redesign against ``design-system/MASTER.md`` happens in Commit 4.
-"""
+"""Family circle creation, joining, and creator-controlled caregiver permissions."""
 
 from __future__ import annotations
 
