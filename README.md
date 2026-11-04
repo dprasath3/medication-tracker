@@ -111,7 +111,7 @@ python -m pytest -q
 ruff check .
 ```
 
-**Verified local result:** 99 Python tests and Ruff pass after the final review, up from 67 tests at baseline `e8e59c4`. The prior 82-test revision also passed [GitHub CI](https://github.com/dprasath3/medication-tracker/actions/runs/41354675085), including the PostgreSQL 16 access-boundary job. [Exact verification results, commands, and limits](docs/TESTING.md) distinguish each revision; the badge links to the real workflow and reports **main**, not an unmerged PR. [Final review and merge conditions](docs/FINAL_REVIEW.md).
+**Verified result:** 99 Python tests and Ruff pass locally and in [GitHub CI](https://github.com/dprasath3/medication-tracker/actions/runs/41917122698), up from 67 tests at baseline `e8e59c4`. The strengthened PostgreSQL 16 access-boundary job also passed. [Exact verification results, commands, and limits](docs/TESTING.md) distinguish each revision; the badge links to the real workflow and reports **main**, not an unmerged PR. [Final review and merge conditions](docs/FINAL_REVIEW.md).
 
 | Area | Evidence |
 | --- | --- |

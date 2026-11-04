@@ -4,7 +4,7 @@ Review date: **November 4, 2026**. Starting PR head: `84860b944152d54d2fc56be7bc
 
 ## Recommendation
 
-The portfolio changes are ready for owner review after the targeted fixes below. Merge only after the new commit's CI is green and the owner confirms that merging `main` will not start an unwanted external deployment. GitHub's conflict-free status alone does not establish deployment safety or production readiness.
+The portfolio changes are ready for owner review after the targeted fixes below. The fixes passed GitHub CI at `df27bd1` (99 Python tests, Ruff, and PostgreSQL 16). Merge only with green current-head checks and after the owner confirms that merging `main` will not start an unwanted external deployment. GitHub's conflict-free status alone does not establish deployment safety or production readiness.
 
 The project now presents its actual software/security engineering clearly: shared authorization policy, two persistence adapters, separate reminder orchestration, tested failure behavior, and a reproducible synthetic demo. No ML implementation, medical outcome, security certification, or live deployment is asserted. Existing production-readiness limitations in [SECURITY.md](../SECURITY.md) remain explicit.
 
@@ -28,7 +28,7 @@ The first new Python checks reproduced **10 failures and 1 pass** against the st
 
 - Fresh Python 3.11.17 environment: starting suite **82 passed in 5.23s**; final suite **99 passed in 4.11s**; Ruff **passed**. Durations are single observations, not performance claims.
 - Expanded Chromium/Streamlit walkthrough **passed** with synthetic SQLite: email sign-in, logging, snooze, caregiver View/Add/submit, refresh, view-only controls, denied write form, unrelated-patient rejection, loaded-session revocation, auth Back, guest refresh, and 375px rendering without an app exception.
-- Strengthened SQL checks **passed locally with PGlite** after expanding psql includes. PostgreSQL 16 is also exercised by the PR's GitHub Actions job; check the current commit's result before merging. Local PGlite is not represented as hosted Supabase verification.
+- Strengthened SQL checks **passed locally with PGlite** after expanding psql includes and on **PostgreSQL 16.15 in GitHub CI**. [Run 41917122698](https://github.com/dprasath3/medication-tracker/actions/runs/41917122698) also passed Ruff and all 99 Python tests (3.07s). Check the current commit's status before merging. Neither isolated database is represented as hosted Supabase verification.
 - The three original 1440×1280 screenshots were visually reviewed; the same application was recaptured locally into scratch for comparison. The committed November 1 images remain unchanged. No DOM manipulation or fabricated screenshot was used.
 - A bounded rescan covered **240 unique reachable Git blobs across 50 commits** at the starting head plus current tracked/new files. No matching private-key, GitHub/AWS/Supabase/JWT credential, credential-URL, or sensitive database/environment-file candidate was found. Synthetic test tokens/numbers and screenshot fixtures were reviewed. This does not prove that every possible secret or private fact is absent.
 - Relative documentation links and patch whitespace were checked; final results are recorded in [TESTING.md](TESTING.md). No real provider, production record, GitHub secret value, or hosted database was accessed.

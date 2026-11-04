@@ -11,7 +11,10 @@ Initial review: November 1, 2026. Final review: November 4, 2026. Baseline: `e8e
 - The strengthened SQL script **passed locally with PGlite**: twelve table boundaries, table/column/sequence denial, server privileges and CRUD, preserved denial despite an old permissive policy, and repeat application after a sequence rename. The prior schema reproduced a missing `users_id_seq` error with that renamed-sequence fixture.
 - Fresh captures went to a scratch directory; the original three November 1 screenshots were visually reviewed and preserved. Browser tests are a local smoke check, not a GitHub Actions job or a complete mobile/accessibility audit.
 
-Current remote CI evidence will be linked from the PR after the final-review commit is pushed. Earlier run IDs below only establish the earlier revisions' results.
+- GitHub PR CI [run 41917122698](https://github.com/dprasath3/medication-tracker/actions/runs/41917122698), head `df27bd1`, **passed**: **99 tests in 3.07s**, Ruff, and the strengthened SQL checks against **PostgreSQL 16.15**. The PR event tested GitHub's temporary merge commit against the unchanged base. The paired branch-push run also passed. The following documentation-only commit does not change the tested application, workflow, or SQL; its current-head status remains visible in the PR Checks tab.
+- **54 relative documentation links resolve**; `git diff --check` passed. CI emitted a non-blocking warning that `actions/checkout@v4` and `actions/setup-python@v5` target deprecated Node 20 and are being run on Node 24. Review and update/pin action versions as part of dependency maintenance.
+
+Earlier run IDs below establish only the earlier revisions' results.
 
 ## Initial review results (November 1)
 
@@ -41,7 +44,7 @@ ruff check .
 
 `tests/conftest.py` clears inherited service credentials, disables `.env` loading, and blocks socket connections during tests. SQLite fixtures use temporary files. Notification tests use fake providers or patched send methods; no real SMS or email is needed.
 
-Observed key versions: Python 3.11.17, pytest 9.2.0, Ruff 0.16.1, Streamlit 1.66.1, APScheduler 3.11.3, bcrypt 5.0.0, Supabase client 2.33.0. Dependencies are not fully locked, so another install may resolve different versions. The Streamlit lower bound was corrected to 1.36 for `st.navigation`/`st.Page`; the full suite was not run against every minimum dependency version.
+Observed local versions: Python 3.11.17, pytest 9.2.0, Ruff 0.16.1, Streamlit 1.66.1, APScheduler 3.11.3, bcrypt 5.0.0, Supabase client 2.33.0. Final-review CI resolved Supabase 2.34.0. Dependencies are not fully locked, so another install may resolve different versions. The Streamlit lower bound was corrected to 1.36 for `st.navigation`/`st.Page`; the full suite was not run against every minimum dependency version.
 
 ## Reproduce browser checks
 

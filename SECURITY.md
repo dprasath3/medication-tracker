@@ -17,7 +17,7 @@ MedSync is a portfolio prototype. This is an implementation review, not a penetr
 
 This corrects the old brief's recommendation to leave RLS off. See [Supabase RLS documentation](https://supabase.com/docs/guides/database/postgres/row-level-security) and [PostgreSQL row-security semantics](https://www.postgresql.org/docs/current/ddl-rowsecurity.html).
 
-The schema is **not applied automatically**, and no hosted project was queried or modified in this review. Existing deployments need review of exposed schemas, grants, inherited roles, existing policies, functions, and keys before any approved migration. Local SQL tests model the role boundary; they are not hosted Supabase verification. A future Supabase Auth migration could add user-level RLS while retaining application checks.
+Checked-in application startup and workflows **do not apply the schema to a hosted database**. External hosting/integration triggers could not be inspected; see the [deployment assessment](docs/FINAL_REVIEW.md). No hosted project was queried or modified in this review. Existing deployments need review of exposed schemas, grants, inherited roles, existing policies, functions, and keys before any approved migration. Isolated SQL tests model the role boundary; they are not hosted Supabase verification. A future Supabase Auth migration could add user-level RLS while retaining application checks.
 
 ## Authentication controls verified in source
 
